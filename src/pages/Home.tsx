@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import type { Product, CartItem } from "../types";
 import generatePayload from 'promptpay-qr';
-// --- แก้ไข 1: เปลี่ยนจาก QRCodeSVG เป็น QRCodeCanvas เพื่อให้เซฟรูปได้ง่าย ---
 import { QRCodeCanvas } from 'qrcode.react'; 
 
 // --- นำเข้า Firestore ---
@@ -44,13 +43,20 @@ export default function Home() {
     fetchProducts();
   }, []);
 
-  // ล็อกการเลื่อนของหน้าหลังเฉพาะตอนเปิด Pop-up และปลดล็อกเมื่อปิด/ออกจากหน้า
+  // ล็อกการเลื่อนของหน้าหลังเฉพาะตอนเปิด Pop-up
   useEffect(() => {
     document.body.style.overflow = (showCheckout || showSuccess) ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [showCheckout, showSuccess]);
+
+  // --- เพิ่มฟังก์ชัน: ปิดหน้าชำระเงินอัตโนมัติถ้าตะกร้าว่างเปล่า ---
+  useEffect(() => {
+    if (cart.length === 0 && showCheckout) {
+      setShowCheckout(false);
+    }
+  }, [cart, showCheckout]);
 
   const handleAddToCart = (product: Product) => {
     setCart((prevCart) => {
@@ -61,6 +67,26 @@ export default function Home() {
         );
       }
       return [...prevCart, { ...product, quantity: 1 }];
+    });
+  };
+
+  // --- เพิ่มฟังก์ชัน 1: ปุ่มเพิ่มจำนวนสินค้าในตะกร้า ---
+  const handleIncreaseQuantity = (productId: string) => {
+    setCart((prev) => 
+      prev.map(item => item.id === productId ? { ...item, quantity: item.quantity + 1 } : item)
+    );
+  };
+
+  // --- เพิ่มฟังก์ชัน 2: ปุ่มลดจำนวนสินค้าในตะกร้า (ถ้าเหลือ 0 ให้ลบออก) ---
+  const handleDecreaseQuantity = (productId: string) => {
+    setCart((prev) => {
+      const existingItem = prev.find(item => item.id === productId);
+      if (existingItem?.quantity === 1) {
+        return prev.filter(item => item.id !== productId); // ลบออกจากตะกร้า
+      }
+      return prev.map(item => 
+        item.id === productId ? { ...item, quantity: item.quantity - 1 } : item
+      );
     });
   };
 
@@ -77,14 +103,14 @@ export default function Home() {
     ? products
     : products.filter(p => (p.category || "อื่นๆ") === selectedCategory);
 
-  // --- เพิ่มฟังก์ชัน 2: ฟังก์ชันสำหรับโหลดรูป QR Code ลงเครื่อง ---
+  // ฟังก์ชันโหลดรูป QR Code ลงเครื่อง
   const handleDownloadQR = () => {
     const canvas = document.getElementById("qr-canvas") as HTMLCanvasElement;
     if (canvas) {
       const pngUrl = canvas.toDataURL("image/png");
       const downloadLink = document.createElement("a");
       downloadLink.href = pngUrl;
-      downloadLink.download = "SOMI_PromptPay_QR.png"; // ชื่อไฟล์รูปที่จะเซฟ
+      downloadLink.download = "SOMI_PromptPay_QR.png"; 
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
@@ -200,26 +226,48 @@ export default function Home() {
             <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl my-auto">
               <h2 className="text-2xl font-bold mb-4 text-gray-800">แสกนจ่ายเงิน 📱</h2>
 
-              <div className="w-full mb-5 text-sm text-gray-600 bg-orange-50 p-4 rounded-2xl">
+              {/* --- แก้ไข 3: เปลี่ยนกล่องรายการสินค้าให้เป็นการ์ดเล็กๆ ที่มีปุ่มกด +/- --- */}
+              <div className="w-full mb-4 bg-orange-50 p-3 rounded-2xl max-h-60 overflow-y-auto [&::-webkit-scrollbar]:hidden shadow-inner">
                 {cart.map((item, index) => (
-                  <div key={index} className="flex justify-between mb-1">
-                    <span>{item.quantity}x {item.name}</span>
-                    <span className="font-medium">฿{item.price * item.quantity}</span>
+                  <div key={index} className="flex flex-col mb-2 bg-white p-3 rounded-xl shadow-sm border border-orange-100/50">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-gray-700 leading-tight pr-2">{item.name}</span>
+                      <span className="font-medium text-orange-500 whitespace-nowrap">฿{item.price * item.quantity}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-auto">
+                      <span className="text-xs text-gray-400">ชิ้นละ ฿{item.price}</span>
+                      
+                      {/* ปุ่มเพิ่มลดจำนวนสินค้า */}
+                      <div className="flex items-center gap-2 bg-gray-50 rounded-full px-1.5 py-1 border border-gray-100">
+                        <button 
+                          onClick={() => handleDecreaseQuantity(item.id!)} 
+                          className="w-6 h-6 flex items-center justify-center bg-white rounded-full text-red-500 font-bold shadow-sm hover:bg-red-50 transition-colors"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-bold w-4 text-center text-gray-700">{item.quantity}</span>
+                        <button 
+                          onClick={() => handleIncreaseQuantity(item.id!)} 
+                          className="w-6 h-6 flex items-center justify-center bg-white rounded-full text-green-500 font-bold shadow-sm hover:bg-green-50 transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
-                <div className="border-t border-orange-200 mt-3 pt-3 flex justify-between font-extrabold text-black text-lg">
+                
+                <div className="border-t border-orange-200 mt-3 pt-3 flex justify-between font-extrabold text-black text-lg px-2">
                   <span>ยอดสุทธิ</span>
                   <span className="text-orange-500">฿{cartTotal}</span>
                 </div>
               </div>
 
-              {/* --- แก้ไข 3: เปลี่ยนคอมโพเนนต์เป็น Canvas และเพิ่ม ID เพื่อให้ JS ค้นหาเจอ --- */}
               <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100 mb-2">
                 <QRCodeCanvas id="qr-canvas" value={qrPayload} size={200} />
               </div>
               <p className="text-gray-400 text-sm mb-3">พร้อมเพย์: {promptpayId}</p>
 
-              {/* --- เพิ่มปุ่ม 4: ปุ่มดาวน์โหลด QR Code --- */}
               <button 
                 onClick={handleDownloadQR}
                 className="mb-6 px-5 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full text-sm font-bold flex items-center gap-2 transition-colors border border-blue-100"
@@ -233,7 +281,7 @@ export default function Home() {
                   onClick={() => setShowCheckout(false)}
                   className="flex-1 py-3 rounded-full font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
                 >
-                  ยกเลิก
+                  ปิดหน้านี้
                 </button>
                 <button
                   onClick={async () => {
