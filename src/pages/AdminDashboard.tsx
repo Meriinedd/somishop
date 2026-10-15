@@ -19,12 +19,13 @@ export default function AdminDashboard() {
   }, [navigate]);
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<any[]>([]); // State สำหรับเก็บออเดอร์
+  const [orders, setOrders] = useState<any[]>([]); 
   
   // State สำหรับฟอร์มเพิ่มสินค้า
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("ขนม");
+  // --- แก้ไข 1: กำหนดค่าเริ่มต้น category ให้เป็นค่าว่าง แทนคำว่า "ขนม"
+  const [category, setCategory] = useState(""); 
   const [imageUrl, setImageUrl] = useState("");
   const [stock, setStock] = useState("");
 
@@ -32,7 +33,7 @@ export default function AdminDashboard() {
   const productsCollectionRef = collection(db, "products");
   const ordersCollectionRef = collection(db, "orders");
 
-  // ฟังก์ชันดึงข้อมูลสินค้าทั้งหมดจากฐานข้อมูล
+  // ฟังก์ชันดึงข้อมูลสินค้าทั้งหมด
   const fetchProducts = async () => {
     const data = await getDocs(productsCollectionRef);
     setProducts(data.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Product)));
@@ -42,12 +43,10 @@ export default function AdminDashboard() {
   const fetchOrders = async () => {
     const ordersData = await getDocs(ordersCollectionRef);
     const ordersList = ordersData.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-    // เรียงลำดับให้ออเดอร์ล่าสุดอยู่บนสุด
     ordersList.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setOrders(ordersList);
   };
 
-  // ดึงข้อมูลทันทีที่เปิดหน้านี้
   useEffect(() => {
     fetchProducts();
     fetchOrders();
@@ -59,14 +58,14 @@ export default function AdminDashboard() {
     await addDoc(productsCollectionRef, {
       name,
       price: Number(price),
-      category,
+      // --- แก้ไข 2: ถ้าช่องหมวดหมู่ว่าง ให้เซ็ตเป็น "อื่นๆ" ป้องกันข้อมูลโล่ง
+      category: category.trim() === "" ? "อื่นๆ" : category.trim(),
       imageUrl: imageUrl || "https://via.placeholder.com/150",
       stock: Number(stock),
     });
     
     // เคลียร์ฟอร์ม
-    setName(""); setPrice(""); setImageUrl(""); setStock("");
-    // โหลดข้อมูลใหม่มาแสดง
+    setName(""); setPrice(""); setCategory(""); setImageUrl(""); setStock("");
     fetchProducts();
   };
 
@@ -79,11 +78,23 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- เพิ่มฟังก์ชัน 1: ลบออเดอร์ ---
+  const handleDeleteOrder = async (id: string) => {
+    if (window.confirm("แน่ใจหรือไม่ว่าต้องการลบประวัติคำสั่งซื้อนี้? (ลบแล้วกู้คืนไม่ได้น้า)")) {
+      const orderDoc = doc(db, "orders", id);
+      await deleteDoc(orderDoc);
+      fetchOrders(); // ดึงข้อมูลออเดอร์มาอัปเดตใหม่
+    }
+  };
+
   // ฟังก์ชันล็อกเอาท์
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/admin");
   };
+
+  // --- เพิ่ม 2: ดึงหมวดหมู่ที่มีอยู่แล้วมาทำเป็นตัวเลือกแนะนำ (Suggestion) ---
+  const existingCategories = Array.from(new Set(products.map(p => p.category || "อื่นๆ")));
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -108,13 +119,32 @@ export default function AdminDashboard() {
             <form onSubmit={handleAddProduct} className="flex flex-col gap-3">
               <input type="text" placeholder="ชื่อสินค้า" required value={name} onChange={(e) => setName(e.target.value)} className="border p-2 rounded" />
               <input type="number" placeholder="ราคา (บาท)" required value={price} onChange={(e) => setPrice(e.target.value)} className="border p-2 rounded" />
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="border p-2 rounded">
-                <option value="ขนม">ขนม</option>
-                <option value="อาหาร">อาหาร</option>
-                <option value="มาม่า">มาม่า</option>
-                <option value="เครื่องดื่ม">เครื่องดื่ม</option>
-                <option value="ไอติม">ไอติม</option>
-              </select>
+              
+              {/* --- แก้ไข 3: เปลี่ยนจาก <select> เป็น <div> ที่มีช่องให้พิมพ์อิสระ + ปุ่มหมวดหมู่แนะนำ --- */}
+              <div className="flex flex-col gap-1 border p-3 rounded bg-gray-50">
+                <label className="text-sm font-bold text-gray-600">หมวดหมู่สินค้า:</label>
+                <input 
+                  type="text" 
+                  placeholder="เช่น ขนม, ของเล่น, เครื่องดื่ม..." 
+                  required 
+                  value={category} 
+                  onChange={(e) => setCategory(e.target.value)} 
+                  className="border p-2 rounded w-full mb-2" 
+                />
+                <div className="text-xs text-gray-500 mb-1">หมวดหมู่ที่มีอยู่แล้ว (คลิกเพื่อเลือก):</div>
+                <div className="flex flex-wrap gap-1">
+                  {existingCategories.map(cat => (
+                    <span 
+                      key={cat} 
+                      onClick={() => setCategory(cat)}
+                      className="px-2 py-1 bg-white border border-gray-200 rounded text-xs cursor-pointer hover:bg-orange-100 transition-colors"
+                    >
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
               <input type="number" placeholder="จำนวนสต๊อก" required value={stock} onChange={(e) => setStock(e.target.value)} className="border p-2 rounded" />
               <input type="text" placeholder="URL รูปภาพ (ใส่ลิงก์รูป)" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="border p-2 rounded text-sm" />
               <button type="submit" className="bg-green-500 text-white py-2 rounded font-bold hover:bg-green-600 mt-2">
@@ -146,7 +176,9 @@ export default function AdminDashboard() {
                       <tr key={product.id} className="hover:bg-gray-50">
                         <td className="p-2 border"><img src={product.imageUrl} alt={product.name} className="w-12 h-12 object-cover rounded" /></td>
                         <td className="p-2 border font-medium">{product.name}</td>
-                        <td className="p-2 border">{product.category}</td>
+                        <td className="p-2 border">
+                           <span className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">{product.category}</span>
+                        </td>
                         <td className="p-2 border">฿{product.price}</td>
                         <td className="p-2 border">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${product.stock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -177,10 +209,12 @@ export default function AdminDashboard() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-orange-50 text-orange-800">
-                    <th className="p-2 border w-1/4">เวลาสั่งซื้อ</th>
-                    <th className="p-2 border">รายการขนม (จำนวน)</th>
+                    <th className="p-2 border w-1/5">เวลาสั่งซื้อ</th>
+                    <th className="p-2 border">รายการสินค้า (จำนวน)</th>
                     <th className="p-2 border w-1/6">ยอดรวม</th>
                     <th className="p-2 border w-1/6 text-center">สถานะ</th>
+                    {/* --- แก้ไข 4: เพิ่มคอลัมน์ จัดการ ให้ประวัติการสั่งซื้อ --- */}
+                    <th className="p-2 border w-1/12 text-center">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -203,6 +237,15 @@ export default function AdminDashboard() {
                         <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
                           {order.status}
                         </span>
+                      </td>
+                      <td className="p-2 border text-center">
+                         {/* ปุ่มลบประวัติออเดอร์ */}
+                         <button 
+                            onClick={() => handleDeleteOrder(order.id)} 
+                            className="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-2 py-1 rounded"
+                         >
+                            เคลียร์
+                         </button>
                       </td>
                     </tr>
                   ))}
