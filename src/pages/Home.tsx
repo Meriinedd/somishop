@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // <-- เพิ่มบรรทัดนี้
+import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import type { Product, CartItem } from "../types";
 import generatePayload from 'promptpay-qr';
@@ -7,7 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 // --- ส่วนที่ 1: นำเข้า Firestore ---
 import { db } from "../firebase";
-import { collection, getDocs, addDoc, updateDoc, doc } from "firebase/firestore"; // <-- แก้บรรทัดนี้
+import { collection, getDocs, addDoc, updateDoc, doc } from "firebase/firestore";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -17,6 +17,10 @@ export default function Home() {
   // --- ส่วนที่ 2: State เก็บข้อมูลสินค้าจาก DB ---
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // --- ส่วนที่ 3: State สำหรับหมวดหมู่และรูปแบบการแสดงผล ---
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // ดึงข้อมูลสินค้าจาก Firebase เมื่อเปิดหน้าเว็บ
   useEffect(() => {
@@ -56,6 +60,15 @@ export default function Home() {
   const promptpayId = "0643365463"; 
   const qrPayload = generatePayload(promptpayId, { amount: cartTotal });
 
+  // ดึงหมวดหมู่ทั้งหมดที่ไม่ซ้ำกันจากสินค้า (ถ้าตัวไหนดึงมาไม่มีหมวดหมู่จะปัดเข้า "อื่นๆ")
+  // สมมติว่าใน Product type มี property category
+  const categories = ["all", ...Array.from(new Set(products.map(p => p.category || "อื่นๆ")))];
+
+  // กรองสินค้าตามหมวดหมู่ที่เลือก
+  const filteredProducts = selectedCategory === "all" 
+    ? products 
+    : products.filter(p => (p.category || "อื่นๆ") === selectedCategory);
+
   // ถ้ากำลังโหลดข้อมูลให้แสดงข้อความนี้
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center text-xl font-bold text-gray-500">กำลังโหลดรายการสินค้า...</div>;
@@ -66,30 +79,75 @@ export default function Home() {
     <div className="min-h-screen bg-[#FFFDF9] p-4 font-sans text-gray-800">
       <div className="max-w-4xl mx-auto">
         
-        {/* Header สไตล์มินิมอลน่ารักๆ */}
-        <header className="flex flex-col sm:flex-row justify-between items-center py-6 mb-6 gap-4">
-          {/* ส่วนของโลโก้ */}
-          <div className="flex items-center justify-center">
+        {/* Header ปรับให้โลโก้ชิดซ้ายมากขึ้น */}
+        <header className="flex flex-row justify-between items-center py-6 mb-4 gap-2">
+          {/* ส่วนของโลโก้ - ใส่ -ml-2 และ sm:-ml-4 เพื่อดึงให้ชิดขอบซ้ายสุดๆ */}
+          <div className="flex items-center justify-start -ml-2 sm:-ml-4">
             <img 
               src="/somi.png" 
               alt="SOMI Shop Logo" 
-              className="h-14 sm:h-16 object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 cursor-pointer"
+              className="h-24 sm:h-32 object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 cursor-pointer"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
             />
           </div>
-          <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-orange-100 font-bold text-gray-600 flex items-center gap-2">
-            🛒 <span className="text-orange-500">{cartItemCount}</span> ชิ้น | ยอดรวม <span className="text-orange-500">฿{cartTotal}</span>
+          <div className="bg-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-full shadow-sm border border-orange-100 font-bold text-sm sm:text-base text-gray-600 flex items-center gap-2">
+            🛒 <span className="text-orange-500">{cartItemCount}</span> ชิ้น | <span className="hidden sm:inline">ยอดรวม </span><span className="text-orange-500">฿{cartTotal}</span>
           </div>
         </header>
 
-        {products.length === 0 ? (
+        {/* แถบควบคุม: หมวดหมู่ & รูปแบบการแสดงผล */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-3 rounded-3xl shadow-sm border border-orange-50">
+          
+          {/* หมวดหมู่ (ซ่อน Scrollbar แต่ยังเลื่อนได้) */}
+          <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-5 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-all duration-200 ${
+                  selectedCategory === cat 
+                    ? 'bg-orange-400 text-white shadow-md transform scale-105' 
+                    : 'bg-gray-50 text-gray-500 hover:bg-orange-50'
+                }`}
+              >
+                {cat === 'all' ? 'ทั้งหมด 🌟' : cat}
+              </button>
+            ))}
+          </div>
+
+          {/* สลับมุมมอง Grid / List */}
+          <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl w-full md:w-auto justify-center">
+             <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 rounded-xl transition-all duration-200 ${viewMode === "grid" ? 'bg-white shadow-sm text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
+                title="ดูแบบเรียงตาราง"
+             >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+             </button>
+             <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 rounded-xl transition-all duration-200 ${viewMode === "list" ? 'bg-white shadow-sm text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
+                title="ดูแบบเลื่อนลง"
+             >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path></svg>
+             </button>
+          </div>
+        </div>
+
+        {/* ตรวจสอบว่ามีสินค้าในหมวดหมู่นั้นไหม */}
+        {filteredProducts.length === 0 ? (
            <div className="text-center text-gray-400 py-16 bg-white rounded-3xl shadow-sm border-dashed border-2 border-gray-200">
              <span className="text-4xl block mb-3">🫙</span>
-             ยังไม่มีขนมในโหลเลยน้า
+             ยังไม่มีขนมในหมวดหมู่นี้เลยน้า
            </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.map((product) => (
+          /* สลับ class CSS ตาม viewMode ที่เลือก */
+          <div className={
+            viewMode === "grid" 
+              ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
+              : "grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto" // แบบ List จะกว้างขึ้นและเรียงเป็นแนวยาวลงมา
+          }>
+            {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -121,7 +179,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* หน้าต่าง Pop-up ชำระเงิน (ใช้โค้ดเดิมของคุณส้มได้เลยครับ ผมปรับความโค้งมนนิดหน่อย) */}
+        {/* หน้าต่าง Pop-up ชำระเงิน */}
         {showCheckout && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl">
@@ -159,15 +217,15 @@ export default function Home() {
                       await addDoc(collection(db, "orders"), {
                         items: cart,
                         totalAmount: cartTotal,
-                        status: "ชำระเงินแล้ว", // สถานะเริ่มต้น
-                        createdAt: new Date().toISOString() // วันเวลาที่สั่ง
+                        status: "ชำระเงินแล้ว", 
+                        createdAt: new Date().toISOString() 
                       });
 
                       // 2. วนลูปตัดสต๊อกสินค้าใน collection 'products'
                       for (const item of cart) {
                         const productRef = doc(db, "products", item.id!);
                         await updateDoc(productRef, {
-                          stock: item.stock - item.quantity // เอาสต๊อกเดิม ลบ จำนวนที่ซื้อ
+                          stock: item.stock - item.quantity 
                         });
                       }
 
@@ -175,7 +233,6 @@ export default function Home() {
                       setCart([]);
                       setShowCheckout(false);
                       
-                      // สั่งให้รีเฟรชหน้าเว็บ 1 รอบ เพื่อโหลดสต๊อกใหม่ล่าสุดมาแสดง
                       window.location.reload(); 
 
                     } catch (error) {
