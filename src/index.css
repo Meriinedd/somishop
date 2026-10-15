@@ -2,18 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-x: clip;
+}
+
 body {
-  /* ❌ ลบ zoom ออกครับ เพราะมันทำให้เกิดขอบขาวด้านล่าง */
-  /* zoom: 85%; */
-  
-  /* เพิ่มคำสั่งนี้แทน เพื่อปรับ Font พื้นฐานให้กระชับขึ้นเล็กน้อย */
   @apply text-sm;
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
-  overflow: hidden; /* ล็อคไม่ให้ Body เลื่อน */
+
   background-color: #f8fafc;
+  overflow-x: clip; /* กันล้นด้านข้างโดยไม่สร้าง scroll container */
 }
 
 /* ปรับ Scrollbar ให้บางลง สวยงามขึ้น */

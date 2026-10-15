@@ -13,10 +13,8 @@ export default function Home() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  
-  // --- เพิ่ม State สำหรับ Pop-up แจ้งเตือนสำเร็จ ---
   const [showSuccess, setShowSuccess] = useState(false);
-  
+
   // State เก็บข้อมูลสินค้า
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,24 +23,33 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // ดึงข้อมูลสินค้าจาก Firebase เมื่อเปิดหน้าเว็บ
+  // ดึงข้อมูลสินค้าจาก Firebase
+  const fetchProducts = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "products"));
+      const productsData = querySnapshot.docs.map(d => ({
+        ...d.data(),
+        id: d.id
+      })) as Product[];
+      setProducts(productsData);
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "products"));
-        const productsData = querySnapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id
-        })) as Product[];
-        setProducts(productsData);
-      } catch (error) {
-        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchProducts();
   }, []);
+
+  // ล็อกการเลื่อนของหน้าหลังเฉพาะตอนเปิด Pop-up และปลดล็อกเมื่อปิด/ออกจากหน้า
+  useEffect(() => {
+    document.body.style.overflow = (showCheckout || showSuccess) ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showCheckout, showSuccess]);
 
   const handleAddToCart = (product: Product) => {
     setCart((prevCart) => {
@@ -60,13 +67,13 @@ export default function Home() {
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // TODO: ใส่เบอร์พร้อมเพย์ของคุณที่นี่
-  const promptpayId = "0643365463"; 
+  const promptpayId = "0643365463";
   const qrPayload = generatePayload(promptpayId, { amount: cartTotal });
 
   const categories = ["all", ...Array.from(new Set(products.map(p => p.category || "อื่นๆ")))];
 
-  const filteredProducts = selectedCategory === "all" 
-    ? products 
+  const filteredProducts = selectedCategory === "all"
+    ? products
     : products.filter(p => (p.category || "อื่นๆ") === selectedCategory);
 
   if (isLoading) {
@@ -74,19 +81,17 @@ export default function Home() {
   }
 
   return (
-    // แก้ไข 1: ใส่ overflow-x-hidden ป้องกันหน้าจอมือถือบั๊กเลื่อนไม่ได้
-    <div className="min-h-screen bg-[#FFFDF9] font-sans text-gray-800 overflow-x-hidden">
-      {/* แก้ไข 2: เพิ่ม padding ด้านล่าง (pb-32) ให้เยอะขึ้น เพื่อไม่ให้ปุ่มที่ลอยอยู่บังปุ่ม Admin */}
+    <div className="min-h-screen bg-[#FFFDF9] font-sans text-gray-800">
       <div className="max-w-4xl mx-auto px-4 pt-4 pb-32">
-        
+
         {/* Header */}
         <header className="flex flex-row justify-between items-center py-6 mb-4 gap-2">
           <div className="flex items-center justify-start -ml-2 sm:-ml-4">
-            <img 
-              src="/somi.png" 
-              alt="SOMI Shop Logo" 
+            <img
+              src="/somi.png"
+              alt="SOMI Shop Logo"
               className="h-24 sm:h-32 object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 cursor-pointer"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             />
           </div>
           <div className="bg-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-full shadow-sm border border-orange-100 font-bold text-sm sm:text-base text-gray-600 flex items-center gap-2">
@@ -96,15 +101,15 @@ export default function Home() {
 
         {/* แถบควบคุม: หมวดหมู่ & รูปแบบการแสดงผล */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-3 rounded-3xl shadow-sm border border-orange-50">
-          
+
           <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-5 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-all duration-200 ${
-                  selectedCategory === cat 
-                    ? 'bg-orange-400 text-white shadow-md transform scale-105' 
+                  selectedCategory === cat
+                    ? 'bg-orange-400 text-white shadow-md transform scale-105'
                     : 'bg-gray-50 text-gray-500 hover:bg-orange-50'
                 }`}
               >
@@ -114,33 +119,33 @@ export default function Home() {
           </div>
 
           <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl w-full md:w-auto justify-center">
-             <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-xl transition-all duration-200 ${viewMode === "grid" ? 'bg-white shadow-sm text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
-                title="ดูแบบเรียงตาราง"
-             >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-             </button>
-             <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-xl transition-all duration-200 ${viewMode === "list" ? 'bg-white shadow-sm text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
-                title="ดูแบบเลื่อนลง"
-             >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path></svg>
-             </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded-xl transition-all duration-200 ${viewMode === "grid" ? 'bg-white shadow-sm text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
+              title="ดูแบบเรียงตาราง"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded-xl transition-all duration-200 ${viewMode === "list" ? 'bg-white shadow-sm text-orange-500' : 'text-gray-400 hover:text-gray-600'}`}
+              title="ดูแบบเลื่อนลง"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"></path></svg>
+            </button>
           </div>
         </div>
 
         {filteredProducts.length === 0 ? (
-           <div className="text-center text-gray-400 py-16 bg-white rounded-3xl shadow-sm border-dashed border-2 border-gray-200">
-             <span className="text-4xl block mb-3">🫙</span>
-             ยังไม่มีขนมในหมวดหมู่นี้เลยน้า
-           </div>
+          <div className="text-center text-gray-400 py-16 bg-white rounded-3xl shadow-sm border-dashed border-2 border-gray-200">
+            <span className="text-4xl block mb-3">🫙</span>
+            ยังไม่มีขนมในหมวดหมู่นี้เลยน้า
+          </div>
         ) : (
           <div className={
-            viewMode === "grid" 
+            viewMode === "grid"
               ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
-              : "grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto" 
+              : "grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto"
           }>
             {filteredProducts.map((product) => (
               <ProductCard
@@ -155,8 +160,8 @@ export default function Home() {
         {/* ปุ่มหน้าชำระเงินที่ลอยอยู่ด้านล่าง */}
         {cart.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:mt-10 sm:text-center z-40">
-            <button 
-              onClick={() => setShowCheckout(true)} 
+            <button
+              onClick={() => setShowCheckout(true)}
               className="w-full sm:w-auto bg-green-400 text-white px-10 py-3.5 rounded-full font-bold text-lg hover:bg-green-500 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
             >
               💸 ไปหน้าชำระเงิน
@@ -166,7 +171,7 @@ export default function Home() {
 
         {/* ปุ่มเข้าสู่ระบบ Admin ด้านล่างสุด */}
         <div className="mt-16 text-center">
-          <button 
+          <button
             onClick={() => navigate('/admin')}
             className="text-orange-200 hover:text-orange-400 text-sm font-medium transition-colors flex items-center justify-center gap-1 mx-auto"
           >
@@ -176,10 +181,10 @@ export default function Home() {
 
         {/* หน้าต่าง Pop-up ชำระเงิน */}
         {showCheckout && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl my-auto">
               <h2 className="text-2xl font-bold mb-4 text-gray-800">แสกนจ่ายเงิน 📱</h2>
-              
+
               <div className="w-full mb-5 text-sm text-gray-600 bg-orange-50 p-4 rounded-2xl">
                 {cart.map((item, index) => (
                   <div key={index} className="flex justify-between mb-1">
@@ -194,38 +199,36 @@ export default function Home() {
               </div>
 
               <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100 mb-2">
-                 <QRCodeSVG value={qrPayload} size={200} />
+                <QRCodeSVG value={qrPayload} size={200} />
               </div>
               <p className="text-gray-400 text-sm mb-6">พร้อมเพย์: {promptpayId}</p>
 
               <div className="flex gap-3 w-full">
-                <button 
+                <button
                   onClick={() => setShowCheckout(false)}
                   className="flex-1 py-3 rounded-full font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
                 >
                   ยกเลิก
                 </button>
-                <button 
+                <button
                   onClick={async () => {
                     try {
                       await addDoc(collection(db, "orders"), {
                         items: cart,
                         totalAmount: cartTotal,
-                        status: "ชำระเงินแล้ว", 
-                        createdAt: new Date().toISOString() 
+                        status: "ชำระเงินแล้ว",
+                        createdAt: new Date().toISOString()
                       });
 
                       for (const item of cart) {
                         const productRef = doc(db, "products", item.id!);
                         await updateDoc(productRef, {
-                          stock: item.stock - item.quantity 
+                          stock: item.stock - item.quantity
                         });
                       }
 
-                      // แก้ไข 3: เปลี่ยนจากการใช้ alert() มาเปิด Pop-up สำเร็จแทน
-                      setShowCheckout(false); 
-                      setShowSuccess(true); 
-
+                      setShowCheckout(false);
+                      setShowSuccess(true);
                     } catch (error) {
                       console.error("Error checkout:", error);
                       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาแจ้งแอดมิน");
@@ -240,24 +243,24 @@ export default function Home() {
           </div>
         )}
 
-        {/* --- แก้ไข 4: เพิ่มหน้าต่าง Pop-up แจ้งเตือนสำเร็จ (แสดงได้ชัวร์ 100% ในมือถือ) --- */}
+        {/* Pop-up แจ้งเตือนสำเร็จ */}
         {showSuccess && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-             <div className="bg-white rounded-3xl p-8 w-full max-w-sm flex flex-col items-center shadow-2xl text-center transform transition-all scale-100 animate-fade-in-up">
-                <div className="text-6xl mb-4">🎉</div>
-                <h2 className="text-2xl font-bold mb-2 text-green-500">สั่งซื้อสำเร็จ!</h2>
-                <p className="text-gray-600 mb-6 text-sm">ระบบบันทึกคำสั่งซื้อและตัดสต๊อกเรียบร้อยแล้ว ขอบคุณที่อุดหนุนน้า!</p>
-                <button 
-                  onClick={() => {
-                    setShowSuccess(false);
-                    setCart([]); // ล้างตะกร้า
-                    window.location.reload(); // ค่อยรีเฟรชหน้าตอนผู้ใช้กด ตกลง
-                  }}
-                  className="w-full py-3.5 rounded-full font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg transition-colors"
-                >
-                  ตกลง
-                </button>
-             </div>
+            <div className="bg-white rounded-3xl p-8 w-full max-w-sm flex flex-col items-center shadow-2xl text-center">
+              <div className="text-6xl mb-4">🎉</div>
+              <h2 className="text-2xl font-bold mb-2 text-green-500">สั่งซื้อสำเร็จ!</h2>
+              <p className="text-gray-600 mb-6 text-sm">ระบบบันทึกคำสั่งซื้อและตัดสต๊อกเรียบร้อยแล้ว ขอบคุณที่อุดหนุนน้า!</p>
+              <button
+                onClick={() => {
+                  setShowSuccess(false);
+                  setCart([]);
+                  fetchProducts(); // ดึงสต๊อกล่าสุด แทนการรีเฟรชทั้งหน้า
+                }}
+                className="w-full py-3.5 rounded-full font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg transition-colors"
+              >
+                ตกลง
+              </button>
+            </div>
           </div>
         )}
 
