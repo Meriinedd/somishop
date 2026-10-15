@@ -14,6 +14,9 @@ export default function Home() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // --- เพิ่ม State สำหรับเก็บชื่อผู้สั่ง/โน๊ต ---
+  const [customerNote, setCustomerNote] = useState("");
+
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -113,30 +116,25 @@ export default function Home() {
   }
 
   return (
-    // --- ปรับแต่ง 1: เปลี่ยนฟอนต์ ใส่ Cursor น่ารักๆ แบบ Sanrio (My Melody) ---
     <div 
       className="min-h-screen font-sans text-gray-700 relative overflow-x-hidden"
       style={{ 
         cursor: "url('https://cdn.custom-cursor.com/db/9763/32/sanrio-my-melody-cupcake-pointer.png'), auto" 
       }}
     >
-      {/* --- ปรับแต่ง 2: เลเยอร์พื้นหลัง background.jpg ดรอปสีให้ดูซอฟต์พาสเทล --- */}
       <div 
         className="fixed inset-0 z-[-1]"
         style={{ 
           backgroundImage: "url('/background.jpg')", 
-          backgroundSize: "300px", // หรือถ้าภาพเป็นแพทเทิร์นเล็กๆ ให้เปลี่ยนเป็น "300px" และเพิ่ม backgroundRepeat: "repeat"
+          backgroundSize: "300px", 
           backgroundPosition: "center",
           backgroundAttachment: "fixed",
-          opacity: 0.15 // ความอ่อนของพื้นหลัง (0.1 - 1.0)
+          opacity: 0.15
         }}
       />
-      {/* สีพื้นหลังเสริมเพื่อความละมุน */}
       <div className="fixed inset-0 z-[-2] bg-pink-50" />
 
       <div className="max-w-4xl mx-auto px-4 pt-4 pb-32">
-
-        {/* Header สไตล์กล่องกระจกใสๆ */}
         <header className="flex flex-row justify-between items-center py-6 mb-4 gap-2">
           <div className="flex items-center justify-start -ml-2 sm:-ml-4">
             <img
@@ -151,9 +149,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* แถบควบคุม: หมวดหมู่ & รูปแบบการแสดงผล */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white/70 backdrop-blur-md p-3 rounded-[2rem] shadow-sm border border-pink-100">
-
           <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categories.map(cat => (
               <button
@@ -209,7 +205,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* ปุ่มหน้าชำระเงินที่ลอยอยู่ด้านล่าง ปรับเป็นสีชมพูหวานๆ */}
         {cart.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-pink-100 shadow-[0_-10px_40px_rgba(253,164,175,0.15)] sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:mt-10 sm:text-center z-40">
             <button
@@ -221,7 +216,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* ปุ่มเข้าสู่ระบบ Admin ด้านล่างสุด */}
         <div className="mt-16 text-center">
           <button
             onClick={() => navigate('/admin')}
@@ -231,7 +225,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* หน้าต่าง Pop-up ชำระเงิน */}
         {showCheckout && (
           <div className="fixed inset-0 bg-pink-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
             <div className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-6 w-full max-w-sm flex flex-col items-center shadow-2xl border-4 border-pink-50 my-auto transform transition-all animate-fade-in-up">
@@ -239,7 +232,6 @@ export default function Home() {
                 แสกนจ่ายเงิน 📱
               </h2>
 
-              {/* กล่องรายการสินค้า */}
               <div className="w-full mb-4 bg-pink-50 p-3 rounded-3xl max-h-60 overflow-y-auto [&::-webkit-scrollbar]:hidden shadow-inner border border-pink-100">
                 {cart.map((item, index) => (
                   <div key={index} className="flex flex-col mb-2 bg-white p-3 rounded-2xl shadow-sm border border-pink-50 hover:border-pink-200 transition-colors">
@@ -249,8 +241,6 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between items-center mt-auto">
                       <span className="text-xs text-gray-400 font-medium">ชิ้นละ ฿{item.price}</span>
-                      
-                      {/* ปุ่มเพิ่มลดจำนวนสินค้า */}
                       <div className="flex items-center gap-2 bg-pink-50/50 rounded-full px-1.5 py-1 border border-pink-100">
                         <button 
                           onClick={() => handleDecreaseQuantity(item.id!)} 
@@ -269,11 +259,25 @@ export default function Home() {
                     </div>
                   </div>
                 ))}
-                
                 <div className="border-t-2 border-pink-100 mt-3 pt-3 flex justify-between font-extrabold text-gray-700 text-lg px-2">
                   <span>ยอดสุทธิ</span>
                   <span className="text-pink-500 text-xl">฿{cartTotal}</span>
                 </div>
+              </div>
+
+              {/* --- เพิ่มช่องใส่ชื่อ/โน๊ต บังคับกรอก --- */}
+              <div className="w-full mb-4">
+                <label className="block text-pink-500 font-bold mb-2 text-sm text-left px-1">
+                  ชื่อผู้สั่ง / โน๊ต (บังคับใส่)*
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น ส้ม, พี่เอนก, แผนกบัญชี..."
+                  value={customerNote}
+                  onChange={(e) => setCustomerNote(e.target.value)}
+                  className="w-full border-2 border-pink-100 p-3 rounded-2xl focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-200 transition-all bg-white text-gray-700"
+                  required
+                />
               </div>
 
               <div className="bg-white p-4 rounded-3xl shadow-sm border-2 border-pink-100 mb-2 hover:shadow-md transition-shadow">
@@ -298,11 +302,18 @@ export default function Home() {
                 </button>
                 <button
                   onClick={async () => {
+                    // --- เพิ่มเช็คว่ากรอกชื่อหรือยัง ---
+                    if (!customerNote.trim()) {
+                      alert("กรุณาใส่ชื่อผู้สั่งหรือโน๊ตก่อนโอนเงินนะคะ 🌸");
+                      return;
+                    }
+
                     try {
                       await addDoc(collection(db, "orders"), {
                         items: cart,
                         totalAmount: cartTotal,
                         status: "ชำระเงินแล้ว",
+                        customerNote: customerNote.trim(), // บันทึกชื่อลง DB
                         createdAt: new Date().toISOString()
                       });
 
@@ -315,6 +326,7 @@ export default function Home() {
 
                       setShowCheckout(false);
                       setShowSuccess(true);
+                      setCustomerNote(""); // เคลียร์ชื่อทิ้งสำหรับการสั่งครั้งถัดไป
                     } catch (error) {
                       console.error("Error checkout:", error);
                       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาแจ้งแอดมิน");
@@ -329,7 +341,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Pop-up แจ้งเตือนสำเร็จ */}
         {showSuccess && (
           <div className="fixed inset-0 bg-pink-900/20 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
             <div className="bg-white/95 rounded-[3rem] p-8 w-full max-w-sm flex flex-col items-center shadow-2xl text-center border-4 border-pink-100 transform transition-all animate-bounce-in">

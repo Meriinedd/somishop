@@ -8,11 +8,10 @@ import type { Product } from "../types";
 export default function AdminDashboard() {
   const navigate = useNavigate();
   
-  // ป้องกันคนแอบเข้า Dashboard โดยไม่ล็อกอิน
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
-        navigate("/admin"); // เตะกลับไปหน้าล็อกอิน
+        navigate("/admin"); 
       }
     });
     return () => unsubscribe();
@@ -21,25 +20,20 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<any[]>([]); 
   
-  // State สำหรับฟอร์มเพิ่มสินค้า
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  // --- แก้ไข 1: กำหนดค่าเริ่มต้น category ให้เป็นค่าว่าง แทนคำว่า "ขนม"
   const [category, setCategory] = useState(""); 
   const [imageUrl, setImageUrl] = useState("");
   const [stock, setStock] = useState("");
 
-  // อ้างอิงไปยัง Collection ในฐานข้อมูล Firestore
   const productsCollectionRef = collection(db, "products");
   const ordersCollectionRef = collection(db, "orders");
 
-  // ฟังก์ชันดึงข้อมูลสินค้าทั้งหมด
   const fetchProducts = async () => {
     const data = await getDocs(productsCollectionRef);
     setProducts(data.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Product)));
   };
 
-  // ฟังก์ชันดึงประวัติการสั่งซื้อ
   const fetchOrders = async () => {
     const ordersData = await getDocs(ordersCollectionRef);
     const ordersList = ordersData.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -52,24 +46,20 @@ export default function AdminDashboard() {
     fetchOrders();
   }, []);
 
-  // ฟังก์ชันเพิ่มสินค้าใหม่
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     await addDoc(productsCollectionRef, {
       name,
       price: Number(price),
-      // --- แก้ไข 2: ถ้าช่องหมวดหมู่ว่าง ให้เซ็ตเป็น "อื่นๆ" ป้องกันข้อมูลโล่ง
       category: category.trim() === "" ? "อื่นๆ" : category.trim(),
       imageUrl: imageUrl || "https://via.placeholder.com/150",
       stock: Number(stock),
     });
     
-    // เคลียร์ฟอร์ม
     setName(""); setPrice(""); setCategory(""); setImageUrl(""); setStock("");
     fetchProducts();
   };
 
-  // ฟังก์ชันลบสินค้า
   const handleDeleteProduct = async (id: string) => {
     if (window.confirm("แน่ใจหรือไม่ว่าต้องการลบสินค้านี้?")) {
       const productDoc = doc(db, "products", id);
@@ -78,22 +68,19 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- เพิ่มฟังก์ชัน 1: ลบออเดอร์ ---
   const handleDeleteOrder = async (id: string) => {
     if (window.confirm("แน่ใจหรือไม่ว่าต้องการลบประวัติคำสั่งซื้อนี้? (ลบแล้วกู้คืนไม่ได้น้า)")) {
       const orderDoc = doc(db, "orders", id);
       await deleteDoc(orderDoc);
-      fetchOrders(); // ดึงข้อมูลออเดอร์มาอัปเดตใหม่
+      fetchOrders(); 
     }
   };
 
-  // ฟังก์ชันล็อกเอาท์
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/admin");
   };
 
-  // --- เพิ่ม 2: ดึงหมวดหมู่ที่มีอยู่แล้วมาทำเป็นตัวเลือกแนะนำ (Suggestion) ---
   const existingCategories = Array.from(new Set(products.map(p => p.category || "อื่นๆ")));
 
   return (
@@ -113,14 +100,12 @@ export default function AdminDashboard() {
         </header>
 
         <div className="grid md:grid-cols-3 gap-8 mb-8">
-          {/* ฟอร์มเพิ่มสินค้า */}
           <div className="md:col-span-1 bg-white p-6 rounded-lg shadow-sm h-fit">
             <h2 className="text-xl font-bold mb-4 border-b pb-2">เพิ่มสินค้าใหม่</h2>
             <form onSubmit={handleAddProduct} className="flex flex-col gap-3">
               <input type="text" placeholder="ชื่อสินค้า" required value={name} onChange={(e) => setName(e.target.value)} className="border p-2 rounded" />
               <input type="number" placeholder="ราคา (บาท)" required value={price} onChange={(e) => setPrice(e.target.value)} className="border p-2 rounded" />
               
-              {/* --- แก้ไข 3: เปลี่ยนจาก <select> เป็น <div> ที่มีช่องให้พิมพ์อิสระ + ปุ่มหมวดหมู่แนะนำ --- */}
               <div className="flex flex-col gap-1 border p-3 rounded bg-gray-50">
                 <label className="text-sm font-bold text-gray-600">หมวดหมู่สินค้า:</label>
                 <input 
@@ -153,7 +138,6 @@ export default function AdminDashboard() {
             </form>
           </div>
 
-          {/* ตารางแสดงรายการสินค้า */}
           <div className="md:col-span-2 bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-xl font-bold mb-4 border-b pb-2">รายการสินค้าทั้งหมดในร้าน</h2>
             {products.length === 0 ? (
@@ -199,7 +183,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- ตารางประวัติการสั่งซื้อ --- */}
         <div className="bg-white p-6 rounded-lg shadow-sm">
           <h2 className="text-xl font-bold mb-4 border-b pb-2 text-orange-500">ประวัติการสั่งซื้อ (ลูกค้าโอนเงินแล้ว)</h2>
           {orders.length === 0 ? (
@@ -209,11 +192,12 @@ export default function AdminDashboard() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-orange-50 text-orange-800">
-                    <th className="p-2 border w-1/5">เวลาสั่งซื้อ</th>
+                    <th className="p-2 border w-1/6">เวลาสั่งซื้อ</th>
+                    {/* --- คอลัมน์ที่เพิ่มใหม่: ชื่อผู้สั่ง --- */}
+                    <th className="p-2 border w-1/5">ชื่อผู้สั่ง / โน๊ต</th>
                     <th className="p-2 border">รายการสินค้า (จำนวน)</th>
                     <th className="p-2 border w-1/6">ยอดรวม</th>
                     <th className="p-2 border w-1/6 text-center">สถานะ</th>
-                    {/* --- แก้ไข 4: เพิ่มคอลัมน์ จัดการ ให้ประวัติการสั่งซื้อ --- */}
                     <th className="p-2 border w-1/12 text-center">จัดการ</th>
                   </tr>
                 </thead>
@@ -222,6 +206,10 @@ export default function AdminDashboard() {
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="p-2 border text-sm text-gray-600">
                         {new Date(order.createdAt).toLocaleString('th-TH')}
+                      </td>
+                      {/* --- แสดงข้อมูลชื่อผู้สั่ง --- */}
+                      <td className="p-2 border font-bold text-pink-500">
+                        {order.customerNote || "-"}
                       </td>
                       <td className="p-2 border">
                         <ul className="list-disc list-inside text-sm">
@@ -239,7 +227,6 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="p-2 border text-center">
-                         {/* ปุ่มลบประวัติออเดอร์ */}
                          <button 
                             onClick={() => handleDeleteOrder(order.id)} 
                             className="text-red-400 hover:text-red-600 font-bold text-xs bg-red-50 px-2 py-1 rounded"
