@@ -5,7 +5,7 @@ import type { Product, CartItem } from "../types";
 import generatePayload from 'promptpay-qr';
 import { QRCodeSVG } from 'qrcode.react';
 
-// --- ส่วนที่ 1: นำเข้า Firestore ---
+// --- นำเข้า Firestore ---
 import { db } from "../firebase";
 import { collection, getDocs, addDoc, updateDoc, doc } from "firebase/firestore";
 
@@ -14,11 +14,14 @@ export default function Home() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   
-  // --- ส่วนที่ 2: State เก็บข้อมูลสินค้าจาก DB ---
+  // --- เพิ่ม State สำหรับ Pop-up แจ้งเตือนสำเร็จ ---
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // State เก็บข้อมูลสินค้า
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- ส่วนที่ 3: State สำหรับหมวดหมู่และรูปแบบการแสดงผล ---
+  // State สำหรับหมวดหมู่และรูปแบบการแสดงผล
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -60,28 +63,24 @@ export default function Home() {
   const promptpayId = "0643365463"; 
   const qrPayload = generatePayload(promptpayId, { amount: cartTotal });
 
-  // ดึงหมวดหมู่ทั้งหมดที่ไม่ซ้ำกันจากสินค้า (ถ้าตัวไหนดึงมาไม่มีหมวดหมู่จะปัดเข้า "อื่นๆ")
-  // สมมติว่าใน Product type มี property category
   const categories = ["all", ...Array.from(new Set(products.map(p => p.category || "อื่นๆ")))];
 
-  // กรองสินค้าตามหมวดหมู่ที่เลือก
   const filteredProducts = selectedCategory === "all" 
     ? products 
     : products.filter(p => (p.category || "อื่นๆ") === selectedCategory);
 
-  // ถ้ากำลังโหลดข้อมูลให้แสดงข้อความนี้
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center text-xl font-bold text-gray-500">กำลังโหลดรายการสินค้า...</div>;
   }
 
   return (
-    // เปลี่ยนสีพื้นหลังให้อมครีมๆ พาสเทล
-    <div className="min-h-screen bg-[#FFFDF9] p-4 font-sans text-gray-800">
-      <div className="max-w-4xl mx-auto">
+    // แก้ไข 1: ใส่ overflow-x-hidden ป้องกันหน้าจอมือถือบั๊กเลื่อนไม่ได้
+    <div className="min-h-screen bg-[#FFFDF9] font-sans text-gray-800 overflow-x-hidden">
+      {/* แก้ไข 2: เพิ่ม padding ด้านล่าง (pb-32) ให้เยอะขึ้น เพื่อไม่ให้ปุ่มที่ลอยอยู่บังปุ่ม Admin */}
+      <div className="max-w-4xl mx-auto px-4 pt-4 pb-32">
         
-        {/* Header ปรับให้โลโก้ชิดซ้ายมากขึ้น */}
+        {/* Header */}
         <header className="flex flex-row justify-between items-center py-6 mb-4 gap-2">
-          {/* ส่วนของโลโก้ - ใส่ -ml-2 และ sm:-ml-4 เพื่อดึงให้ชิดขอบซ้ายสุดๆ */}
           <div className="flex items-center justify-start -ml-2 sm:-ml-4">
             <img 
               src="/somi.png" 
@@ -98,7 +97,6 @@ export default function Home() {
         {/* แถบควบคุม: หมวดหมู่ & รูปแบบการแสดงผล */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-3 rounded-3xl shadow-sm border border-orange-50">
           
-          {/* หมวดหมู่ (ซ่อน Scrollbar แต่ยังเลื่อนได้) */}
           <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categories.map(cat => (
               <button
@@ -115,7 +113,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* สลับมุมมอง Grid / List */}
           <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl w-full md:w-auto justify-center">
              <button
                 onClick={() => setViewMode("grid")}
@@ -134,18 +131,16 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ตรวจสอบว่ามีสินค้าในหมวดหมู่นั้นไหม */}
         {filteredProducts.length === 0 ? (
            <div className="text-center text-gray-400 py-16 bg-white rounded-3xl shadow-sm border-dashed border-2 border-gray-200">
              <span className="text-4xl block mb-3">🫙</span>
              ยังไม่มีขนมในหมวดหมู่นี้เลยน้า
            </div>
         ) : (
-          /* สลับ class CSS ตาม viewMode ที่เลือก */
           <div className={
             viewMode === "grid" 
               ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
-              : "grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto" // แบบ List จะกว้างขึ้นและเรียงเป็นแนวยาวลงมา
+              : "grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto" 
           }>
             {filteredProducts.map((product) => (
               <ProductCard
@@ -159,7 +154,7 @@ export default function Home() {
 
         {/* ปุ่มหน้าชำระเงินที่ลอยอยู่ด้านล่าง */}
         {cart.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:mt-10 sm:text-center z-40">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:mt-10 sm:text-center z-40">
             <button 
               onClick={() => setShowCheckout(true)} 
               className="w-full sm:w-auto bg-green-400 text-white px-10 py-3.5 rounded-full font-bold text-lg hover:bg-green-500 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
@@ -169,8 +164,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* --- ปุ่มลัดเข้าสู่ระบบ Admin ด้านล่างสุด --- */}
-        <div className="mt-16 mb-24 text-center">
+        {/* ปุ่มเข้าสู่ระบบ Admin ด้านล่างสุด */}
+        <div className="mt-16 text-center">
           <button 
             onClick={() => navigate('/admin')}
             className="text-orange-200 hover:text-orange-400 text-sm font-medium transition-colors flex items-center justify-center gap-1 mx-auto"
@@ -181,7 +176,7 @@ export default function Home() {
 
         {/* หน้าต่าง Pop-up ชำระเงิน */}
         {showCheckout && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl">
               <h2 className="text-2xl font-bold mb-4 text-gray-800">แสกนจ่ายเงิน 📱</h2>
               
@@ -213,7 +208,6 @@ export default function Home() {
                 <button 
                   onClick={async () => {
                     try {
-                      // 1. บันทึกออเดอร์ลง collection ชื่อ 'orders'
                       await addDoc(collection(db, "orders"), {
                         items: cart,
                         totalAmount: cartTotal,
@@ -221,7 +215,6 @@ export default function Home() {
                         createdAt: new Date().toISOString() 
                       });
 
-                      // 2. วนลูปตัดสต๊อกสินค้าใน collection 'products'
                       for (const item of cart) {
                         const productRef = doc(db, "products", item.id!);
                         await updateDoc(productRef, {
@@ -229,11 +222,9 @@ export default function Home() {
                         });
                       }
 
-                      alert("ระบบบันทึกคำสั่งซื้อและตัดสต๊อกเรียบร้อยแล้ว ขอบคุณที่อุดหนุนน้า! 🎉");
-                      setCart([]);
-                      setShowCheckout(false);
-                      
-                      window.location.reload(); 
+                      // แก้ไข 3: เปลี่ยนจากการใช้ alert() มาเปิด Pop-up สำเร็จแทน
+                      setShowCheckout(false); 
+                      setShowSuccess(true); 
 
                     } catch (error) {
                       console.error("Error checkout:", error);
@@ -246,6 +237,27 @@ export default function Home() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- แก้ไข 4: เพิ่มหน้าต่าง Pop-up แจ้งเตือนสำเร็จ (แสดงได้ชัวร์ 100% ในมือถือ) --- */}
+        {showSuccess && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+             <div className="bg-white rounded-3xl p-8 w-full max-w-sm flex flex-col items-center shadow-2xl text-center transform transition-all scale-100 animate-fade-in-up">
+                <div className="text-6xl mb-4">🎉</div>
+                <h2 className="text-2xl font-bold mb-2 text-green-500">สั่งซื้อสำเร็จ!</h2>
+                <p className="text-gray-600 mb-6 text-sm">ระบบบันทึกคำสั่งซื้อและตัดสต๊อกเรียบร้อยแล้ว ขอบคุณที่อุดหนุนน้า!</p>
+                <button 
+                  onClick={() => {
+                    setShowSuccess(false);
+                    setCart([]); // ล้างตะกร้า
+                    window.location.reload(); // ค่อยรีเฟรชหน้าตอนผู้ใช้กด ตกลง
+                  }}
+                  className="w-full py-3.5 rounded-full font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg transition-colors"
+                >
+                  ตกลง
+                </button>
+             </div>
           </div>
         )}
 
