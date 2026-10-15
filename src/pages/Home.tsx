@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // <-- เพิ่มบรรทัดนี้
 import ProductCard from "../components/ProductCard";
 import type { Product, CartItem } from "../types";
 import generatePayload from 'promptpay-qr';
@@ -9,6 +10,7 @@ import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 
 export default function Home() {
+  const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   
@@ -60,22 +62,33 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    // เปลี่ยนสีพื้นหลังให้อมครีมๆ พาสเทล
+    <div className="min-h-screen bg-[#FFFDF9] p-4 font-sans text-gray-800">
       <div className="max-w-4xl mx-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-center py-4 mb-6 border-b gap-4">
-          <h1 className="text-2xl font-bold text-orange-500">SOMI</h1>
-          <div className="bg-white px-4 py-2 rounded-full shadow-sm font-semibold text-gray-700">
-            🛒 ตะกร้า: {cartItemCount} ชิ้น | ยอดรวม: ฿{cartTotal}
+        
+        {/* Header สไตล์มินิมอลน่ารักๆ */}
+        <header className="flex flex-col sm:flex-row justify-between items-center py-6 mb-6 gap-4">
+          {/* ส่วนของโลโก้ */}
+          <div className="flex items-center justify-center">
+            <img 
+              src="/somi.png" 
+              alt="SOMI Shop Logo" 
+              className="h-14 sm:h-16 object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300 cursor-pointer"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
+            />
+          </div>
+          <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-orange-100 font-bold text-gray-600 flex items-center gap-2">
+            🛒 <span className="text-orange-500">{cartItemCount}</span> ชิ้น | ยอดรวม <span className="text-orange-500">฿{cartTotal}</span>
           </div>
         </header>
 
-        {/* --- ส่วนที่ 3: เช็คว่ามีสินค้าหรือไม่ ถ้ามีก็ map ข้อมูลของจริงออกมา --- */}
         {products.length === 0 ? (
-           <div className="text-center text-gray-500 py-10 bg-white rounded-lg shadow-sm">
-             ยังไม่มีสินค้าในร้านค้านี้
+           <div className="text-center text-gray-400 py-16 bg-white rounded-3xl shadow-sm border-dashed border-2 border-gray-200">
+             <span className="text-4xl block mb-3">🫙</span>
+             ยังไม่มีขนมในโหลเลยน้า
            </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {products.map((product) => (
               <ProductCard
                 key={product.id}
@@ -86,54 +99,66 @@ export default function Home() {
           </div>
         )}
 
+        {/* ปุ่มหน้าชำระเงินที่ลอยอยู่ด้านล่าง */}
         {cart.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-lg sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:mt-8 sm:text-center z-40">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] sm:static sm:bg-transparent sm:border-0 sm:shadow-none sm:mt-10 sm:text-center z-40">
             <button 
               onClick={() => setShowCheckout(true)} 
-              className="w-full sm:w-auto bg-green-500 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-green-600 shadow-md transition-colors"
+              className="w-full sm:w-auto bg-green-400 text-white px-10 py-3.5 rounded-full font-bold text-lg hover:bg-green-500 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
             >
-              ไปหน้าชำระเงิน (สแกน QR)
+              💸 ไปหน้าชำระเงิน
             </button>
           </div>
         )}
 
+        {/* --- ปุ่มลัดเข้าสู่ระบบ Admin ด้านล่างสุด --- */}
+        <div className="mt-16 mb-24 text-center">
+          <button 
+            onClick={() => navigate('/admin')}
+            className="text-orange-200 hover:text-orange-400 text-sm font-medium transition-colors flex items-center justify-center gap-1 mx-auto"
+          >
+            ⚙️ เข้าสู่ระบบจัดการร้านค้า (Admin)
+          </button>
+        </div>
+
+        {/* หน้าต่าง Pop-up ชำระเงิน (ใช้โค้ดเดิมของคุณส้มได้เลยครับ ผมปรับความโค้งมนนิดหน่อย) */}
         {showCheckout && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">สแกนจ่ายเงิน</h2>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">แสกนจ่ายเงิน 📱</h2>
               
-              <div className="w-full mb-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+              <div className="w-full mb-5 text-sm text-gray-600 bg-orange-50 p-4 rounded-2xl">
                 {cart.map((item, index) => (
-                  <div key={index} className="flex justify-between">
+                  <div key={index} className="flex justify-between mb-1">
                     <span>{item.quantity}x {item.name}</span>
-                    <span>฿{item.price * item.quantity}</span>
+                    <span className="font-medium">฿{item.price * item.quantity}</span>
                   </div>
                 ))}
-                <div className="border-t mt-2 pt-2 flex justify-between font-bold text-black text-lg">
+                <div className="border-t border-orange-200 mt-3 pt-3 flex justify-between font-extrabold text-black text-lg">
                   <span>ยอดสุทธิ</span>
                   <span className="text-orange-500">฿{cartTotal}</span>
                 </div>
               </div>
 
-              <div className="bg-white p-2 rounded-lg border-2 border-blue-900 mb-4 inline-block">
+              <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100 mb-2">
                  <QRCodeSVG value={qrPayload} size={200} />
               </div>
-              <p className="text-gray-500 text-sm mb-6">พร้อมเพย์: {promptpayId}</p>
+              <p className="text-gray-400 text-sm mb-6">พร้อมเพย์: {promptpayId}</p>
 
               <div className="flex gap-3 w-full">
                 <button 
                   onClick={() => setShowCheckout(false)}
-                  className="flex-1 py-2 rounded-md font-medium text-gray-600 bg-gray-200 hover:bg-gray-300"
+                  className="flex-1 py-3 rounded-full font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
                 >
                   ยกเลิก
                 </button>
                 <button 
                   onClick={() => {
-                    alert("แจ้งแอดมินว่าโอนเงินแล้ว เดี๋ยวเราจะไปต่อยอดเขียนลงฐานข้อมูลทีหลังครับ!");
+                    alert("แจ้งแอดมินว่าโอนเงินแล้ว ขอบคุณที่อุดหนุนน้า!");
                     setCart([]);
                     setShowCheckout(false);
                   }}
-                  className="flex-1 py-2 rounded-md font-medium text-white bg-blue-500 hover:bg-blue-600"
+                  className="flex-1 py-3 rounded-full font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-md transition-colors"
                 >
                   โอนเงินแล้ว
                 </button>
@@ -141,6 +166,7 @@ export default function Home() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
