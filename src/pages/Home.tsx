@@ -7,7 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 // --- ส่วนที่ 1: นำเข้า Firestore ---
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, doc } from "firebase/firestore"; // <-- แก้บรรทัดนี้
 
 export default function Home() {
   const navigate = useNavigate();
@@ -153,10 +153,35 @@ export default function Home() {
                   ยกเลิก
                 </button>
                 <button 
-                  onClick={() => {
-                    alert("แจ้งแอดมินว่าโอนเงินแล้ว ขอบคุณที่อุดหนุนน้า!");
-                    setCart([]);
-                    setShowCheckout(false);
+                  onClick={async () => {
+                    try {
+                      // 1. บันทึกออเดอร์ลง collection ชื่อ 'orders'
+                      await addDoc(collection(db, "orders"), {
+                        items: cart,
+                        totalAmount: cartTotal,
+                        status: "ชำระเงินแล้ว", // สถานะเริ่มต้น
+                        createdAt: new Date().toISOString() // วันเวลาที่สั่ง
+                      });
+
+                      // 2. วนลูปตัดสต๊อกสินค้าใน collection 'products'
+                      for (const item of cart) {
+                        const productRef = doc(db, "products", item.id!);
+                        await updateDoc(productRef, {
+                          stock: item.stock - item.quantity // เอาสต๊อกเดิม ลบ จำนวนที่ซื้อ
+                        });
+                      }
+
+                      alert("ระบบบันทึกคำสั่งซื้อและตัดสต๊อกเรียบร้อยแล้ว ขอบคุณที่อุดหนุนน้า! 🎉");
+                      setCart([]);
+                      setShowCheckout(false);
+                      
+                      // สั่งให้รีเฟรชหน้าเว็บ 1 รอบ เพื่อโหลดสต๊อกใหม่ล่าสุดมาแสดง
+                      window.location.reload(); 
+
+                    } catch (error) {
+                      console.error("Error checkout:", error);
+                      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาแจ้งแอดมิน");
+                    }
                   }}
                   className="flex-1 py-3 rounded-full font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-md transition-colors"
                 >

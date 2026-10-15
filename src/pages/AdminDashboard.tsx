@@ -2,12 +2,24 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../firebase";
 import { collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
-import { signOut } from "firebase/auth";
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import type { Product } from "../types";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  
+  // ป้องกันคนแอบเข้า Dashboard โดยไม่ล็อกอิน
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        navigate("/admin"); // เตะกลับไปหน้าล็อกอิน
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
+
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<any[]>([]); // State สำหรับเก็บออเดอร์
   
   // State สำหรับฟอร์มเพิ่มสินค้า
   const [name, setName] = useState("");
@@ -16,8 +28,9 @@ export default function AdminDashboard() {
   const [imageUrl, setImageUrl] = useState("");
   const [stock, setStock] = useState("");
 
-  // อ้างอิงไปยัง Collection 'products' ในฐานข้อมูล Firestore
+  // อ้างอิงไปยัง Collection ในฐานข้อมูล Firestore
   const productsCollectionRef = collection(db, "products");
+  const ordersCollectionRef = collection(db, "orders");
 
   // ฟังก์ชันดึงข้อมูลสินค้าทั้งหมดจากฐานข้อมูล
   const fetchProducts = async () => {
@@ -25,9 +38,19 @@ export default function AdminDashboard() {
     setProducts(data.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Product)));
   };
 
+  // ฟังก์ชันดึงประวัติการสั่งซื้อ
+  const fetchOrders = async () => {
+    const ordersData = await getDocs(ordersCollectionRef);
+    const ordersList = ordersData.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    // เรียงลำดับให้ออเดอร์ล่าสุดอยู่บนสุด
+    ordersList.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setOrders(ordersList);
+  };
+
   // ดึงข้อมูลทันทีที่เปิดหน้านี้
   useEffect(() => {
     fetchProducts();
+    fetchOrders();
   }, []);
 
   // ฟังก์ชันเพิ่มสินค้าใหม่
@@ -37,7 +60,7 @@ export default function AdminDashboard() {
       name,
       price: Number(price),
       category,
-      imageUrl: imageUrl || "https://via.placeholder.com/150", // ถ้าไม่ใส่รูปให้ใช้รูปจำลอง
+      imageUrl: imageUrl || "https://via.placeholder.com/150",
       stock: Number(stock),
     });
     
@@ -78,7 +101,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* ฟอร์มเพิ่มสินค้า */}
           <div className="md:col-span-1 bg-white p-6 rounded-lg shadow-sm h-fit">
             <h2 className="text-xl font-bold mb-4 border-b pb-2">เพิ่มสินค้าใหม่</h2>
@@ -143,7 +166,52 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
-        
+
+        {/* --- ตารางประวัติการสั่งซื้อ --- */}
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <h2 className="text-xl font-bold mb-4 border-b pb-2 text-orange-500">ประวัติการสั่งซื้อ (ลูกค้าโอนเงินแล้ว)</h2>
+          {orders.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">ยังไม่มีคำสั่งซื้อเข้ามา</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-orange-50 text-orange-800">
+                    <th className="p-2 border w-1/4">เวลาสั่งซื้อ</th>
+                    <th className="p-2 border">รายการขนม (จำนวน)</th>
+                    <th className="p-2 border w-1/6">ยอดรวม</th>
+                    <th className="p-2 border w-1/6 text-center">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="p-2 border text-sm text-gray-600">
+                        {new Date(order.createdAt).toLocaleString('th-TH')}
+                      </td>
+                      <td className="p-2 border">
+                        <ul className="list-disc list-inside text-sm">
+                          {order.items.map((item: any, idx: number) => (
+                            <li key={idx}>
+                              {item.name} <span className="text-orange-500 font-bold ml-1">x{item.quantity}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="p-2 border font-bold text-green-600">฿{order.totalAmount}</td>
+                      <td className="p-2 border text-center">
+                        <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                          {order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
