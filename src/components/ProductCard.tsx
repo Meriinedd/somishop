@@ -38,7 +38,7 @@ export default function ProductCard({ product, onAddToCart }: Props) {
 
         <div className="w-full text-center">
           <h3 className="font-bold text-gray-700 text-md truncate">{product.name}</h3>
-          <p className="text-orange-500 font-extrabold text-lg mt-1">฿{product.price}</p>
+          <p className="text-pink-500 font-extrabold text-lg mt-1">฿{product.price}</p>
         </div>
 
         <button
@@ -46,7 +46,7 @@ export default function ProductCard({ product, onAddToCart }: Props) {
           disabled={product.stock <= 0}
           className={`mt-3 w-full py-2.5 rounded-full font-bold text-white transition-colors ${
             product.stock > 0
-              ? 'bg-orange-400 hover:bg-orange-500 shadow-sm'
+              ? 'bg-pink-400 hover:bg-pink-500 shadow-sm'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
