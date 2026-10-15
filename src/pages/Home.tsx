@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import type { Product, CartItem } from "../types";
 import generatePayload from 'promptpay-qr';
-import { QRCodeSVG } from 'qrcode.react';
+// --- แก้ไข 1: เปลี่ยนจาก QRCodeSVG เป็น QRCodeCanvas เพื่อให้เซฟรูปได้ง่าย ---
+import { QRCodeCanvas } from 'qrcode.react'; 
 
 // --- นำเข้า Firestore ---
 import { db } from "../firebase";
@@ -75,6 +76,20 @@ export default function Home() {
   const filteredProducts = selectedCategory === "all"
     ? products
     : products.filter(p => (p.category || "อื่นๆ") === selectedCategory);
+
+  // --- เพิ่มฟังก์ชัน 2: ฟังก์ชันสำหรับโหลดรูป QR Code ลงเครื่อง ---
+  const handleDownloadQR = () => {
+    const canvas = document.getElementById("qr-canvas") as HTMLCanvasElement;
+    if (canvas) {
+      const pngUrl = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = "SOMI_PromptPay_QR.png"; // ชื่อไฟล์รูปที่จะเซฟ
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  };
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center text-xl font-bold text-gray-500">กำลังโหลดรายการสินค้า...</div>;
@@ -198,10 +213,20 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* --- แก้ไข 3: เปลี่ยนคอมโพเนนต์เป็น Canvas และเพิ่ม ID เพื่อให้ JS ค้นหาเจอ --- */}
               <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-100 mb-2">
-                <QRCodeSVG value={qrPayload} size={200} />
+                <QRCodeCanvas id="qr-canvas" value={qrPayload} size={200} />
               </div>
-              <p className="text-gray-400 text-sm mb-6">พร้อมเพย์: {promptpayId}</p>
+              <p className="text-gray-400 text-sm mb-3">พร้อมเพย์: {promptpayId}</p>
+
+              {/* --- เพิ่มปุ่ม 4: ปุ่มดาวน์โหลด QR Code --- */}
+              <button 
+                onClick={handleDownloadQR}
+                className="mb-6 px-5 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full text-sm font-bold flex items-center gap-2 transition-colors border border-blue-100"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                บันทึกคิวอาร์โค้ด
+              </button>
 
               <div className="flex gap-3 w-full">
                 <button
@@ -254,7 +279,7 @@ export default function Home() {
                 onClick={() => {
                   setShowSuccess(false);
                   setCart([]);
-                  fetchProducts(); // ดึงสต๊อกล่าสุด แทนการรีเฟรชทั้งหน้า
+                  fetchProducts(); 
                 }}
                 className="w-full py-3.5 rounded-full font-bold text-white bg-green-500 hover:bg-green-600 shadow-lg transition-colors"
               >
