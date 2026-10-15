@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  /* ❌ ลบ zoom ออกครับ เพราะมันทำให้เกิดขอบขาวด้านล่าง */
+  /* zoom: 85%; */
+  
+  /* เพิ่มคำสั่งนี้แทน เพื่อปรับ Font พื้นฐานให้กระชับขึ้นเล็กน้อย */
+  @apply text-sm;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  overflow: hidden; /* ล็อคไม่ให้ Body เลื่อน */
+  background-color: #f8fafc;
+}
+
+/* ปรับ Scrollbar ให้บางลง สวยงามขึ้น */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
